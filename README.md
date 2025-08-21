@@ -509,9 +509,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Professional Support**: Contact for enterprise support
 
 ### Contact Information
-- **Project Maintainer**: [Your Name]
-- **Email**: [your.email@example.com]
-- **GitHub**: [your-github-username]
+- **Project Maintainer**: [Billy]
+- **Email**: [idontfeellikesharing]
+- **GitHub**: [BillyMwangiDev]
 
 ## 🎯 Roadmap
 
@@ -532,4 +532,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 **Built with ❤️ using Django and modern web technologies**
 
-*Last updated: December 2024*
+*Last updated: December 2025*
