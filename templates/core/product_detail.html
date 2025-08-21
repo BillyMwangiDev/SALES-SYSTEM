@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} - Nicmah System{% endblock %}
+{% block page_title %}{{ product.name }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'admin:core_product_change' product.id %}" class="btn btn-warning">
+        <i class="fas fa-edit me-1"></i>Edit Product
+    </a>
+    <a href="{% url 'admin:core_batch_add' %}?product={{ product.id }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i>Add Batch
+    </a>
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-download me-1"></i>Export
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=products&format=excel">Product Data (Excel)</a></li>
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=batches&format=excel">Batch Data (Excel)</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Product Overview -->
+<div class="row mb-4">
+    <div class="col-xl-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Product Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">SKU:</td>
+                                <td><code>{{ product.sku }}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Category:</td>
+                                <td><span class="badge bg-secondary">{{ product.category }}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Unit:</td>
+                                <td>{{ product.unit }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Status:</td>
+                                <td>
+                                    {% if product.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">Cost Price:</td>
+                                <td class="text-muted">KES {{ product.cost_price|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Selling Price:</td>
+                                <td class="text-success fw-bold">KES {{ product.selling_price|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Profit Margin:</td>
+                                <td>
+                                    {% if product.gross_profit_margin >= 30 %}
+                                        <span class="badge bg-success">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                    {% elif product.gross_profit_margin >= 15 %}
+                                        <span class="badge bg-warning">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Reorder Level:</td>
+                                <td>{{ product.reorder_level }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                {% if product.description %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="fw-bold">Description:</h6>
+                            <p class="text-muted">{{ product.description }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Stock Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ product.current_stock }}</h4>
+                            <small class="text-muted">Current Stock</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-warning">{{ product.reorder_level }}</h4>
+                        <small class="text-muted">Reorder Level</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <h5 class="mb-2">Stock Status</h5>
+                    {% if product.stock_status == "Out of Stock" %}
+                        <span class="badge bg-danger fs-6">{{ product.stock_status }}</span>
+                    {% elif product.stock_status == "Low Stock" %}
+                        <span class="badge bg-warning fs-6">{{ product.stock_status }}</span>
+                    {% else %}
+                        <span class="badge bg-success fs-6">{{ product.stock_status }}</span>
+                    {% endif %}
+                </div>
+                <hr>
+                <div class="d-grid">
+                    <a href="{% url 'admin:core_batch_add' %}?product={{ product.id }}" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Add New Batch
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Movement Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Stock Movement (Last 30 Days)</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="stockMovementChart" width="100%" height="40"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Batches and Expiry Information -->
+<div class="row mb-4">
+    <div class="col-xl-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Product Batches</h6>
+            </div>
+            <div class="card-body">
+                {% if product.batches.all %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Batch Number</th>
+                                    <th>Quantity</th>
+                                    <th>Cost Price</th>
+                                    <th>Expiry Date</th>
+                                    <th>Days Left</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in product.batches.all %}
+                                <tr>
+                                    <td>
+                                        <code>{{ batch.batch_number }}</code>
+                                        {% if batch.supplier %}
+                                            <br><small class="text-muted">Supplier: {{ batch.supplier }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if batch.quantity == 0 %}
+                                            <span class="badge bg-danger">{{ batch.quantity }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ batch.quantity }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>KES {{ batch.cost_price|floatformat:2 }}</td>
+                                    <td>{{ batch.expiry_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if batch.days_to_expiry < 0 %}
+                                            <span class="badge bg-danger">Expired</span>
+                                        {% elif batch.days_to_expiry <= 30 %}
+                                            <span class="badge bg-warning">{{ batch.days_to_expiry }} days</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ batch.days_to_expiry }} days</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if batch.expiry_status == "Expired" %}
+                                            <span class="badge bg-danger">{{ batch.expiry_status }}</span>
+                                        {% elif batch.expiry_status == "Expiring Soon" %}
+                                            <span class="badge bg-warning">{{ batch.expiry_status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ batch.expiry_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'admin:core_batch_change' batch.id %}" 
+                                               class="btn btn-outline-warning" title="Edit Batch">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'admin:core_stockadjustment_add' %}?batch={{ batch.id }}" 
+                                               class="btn btn-outline-info" title="Adjust Stock">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No batches found</h5>
+                        <p class="text-muted">This product doesn't have any batches yet.</p>
+                        <a href="{% url 'admin:core_batch_add' %}?product={{ product.id }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Batch
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Expiry Alerts</h6>
+            </div>
+            <div class="card-body">
+                {% if expiry_alerts %}
+                    <div class="list-group list-group-flush">
+                        {% for batch in expiry_alerts %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ batch.batch_number }}</h6>
+                                    <small class="text-muted">Expires: {{ batch.expiry_date|date:"M d, Y" }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-warning">{{ batch.quantity }}</span>
+                                    <br>
+                                    <small class="text-muted">{{ batch.days_to_expiry }} days left</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h6 class="text-success">No Expiry Alerts</h6>
+                        <p class="text-muted small">All batches are in good condition.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Sales History</h6>
+            </div>
+            <div class="card-body">
+                {% if sales_history %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Invoice</th>
+                                    <th>Seller</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                    <th>Batch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sales_history %}
+                                <tr>
+                                    <td>{{ item.sale.sale_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'admin:core_sale_change' item.sale.id %}">
+                                            {{ item.sale.invoice_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.sale.seller_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>KES {{ item.unit_price|floatformat:2 }}</td>
+                                    <td class="text-success fw-bold">KES {{ item.total_price|floatformat:2 }}</td>
+                                    <td><code>{{ item.batch.batch_number }}</code></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No Sales History</h6>
+                        <p class="text-muted small">This product hasn't been sold yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Stock Movement Chart (placeholder - you can enhance this with real data)
+const stockMovementCtx = document.getElementById('stockMovementChart').getContext('2d');
+const stockMovementChart = new Chart(stockMovementCtx, {
+    type: 'line',
+    data: {
+        labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+        datasets: [{
+            label: 'Stock Level',
+            data: [100, 95, 88, 82, 75, 68, 60],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Stock Quantity'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Date'
+                }
+            }
+        }
+    }
+});
+
+// Add some interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight low stock batches
+    const lowStockRows = document.querySelectorAll('tr');
+    lowStockRows.forEach(row => {
+        const quantityCell = row.querySelector('td:nth-child(2)');
+        if (quantityCell && quantityCell.textContent.includes('0')) {
+            row.classList.add('table-danger');
+        }
+    });
+
+    // Highlight expiring soon batches
+    const expiringRows = document.querySelectorAll('tr');
+    expiringRows.forEach(row => {
+        const daysCell = row.querySelector('td:nth-child(5)');
+        if (daysCell && daysCell.textContent.includes('days') && 
+            parseInt(daysCell.textContent) <= 30) {
+            row.classList.add('table-warning');
+        }
+    });
+});
+</script>
+{% endblock %}

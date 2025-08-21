@@ -1,0 +1,27 @@
+# Django and Core Dependencies
+Django>=4.2.0,<5.0.0
+djangorestframework>=3.14.0
+django-crontab>=0.7.1
+python-decouple>=3.8
+
+# Data Processing and Import/Export
+pandas>=2.0.0
+openpyxl>=3.1.0
+xlrd>=2.0.1
+
+# Database and Utilities
+psycopg2-binary>=2.9.0  # For PostgreSQL (optional)
+mysqlclient>=2.1.0      # For MySQL (optional)
+
+# Development and Testing
+coverage>=7.2.0
+pytest>=7.3.0
+pytest-django>=4.5.0
+
+# Production (Optional)
+gunicorn>=21.0.0
+whitenoise>=6.5.0
+
+# Additional Utilities
+Pillow>=10.0.0          # For image handling
+python-dateutil>=2.8.0  # For date parsing

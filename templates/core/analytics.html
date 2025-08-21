@@ -1,0 +1,441 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics Dashboard - Nicmah System{% endblock %}
+
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <select class="form-select form-select-sm" id="dateRange" style="width: auto;">
+        <option value="6">Last 6 months</option>
+        <option value="12" selected>Last 12 months</option>
+        <option value="24">Last 24 months</option>
+    </select>
+    <a href="{% url 'core:reports' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-chart-bar me-2"></i>Detailed Reports
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Sales</h6>
+                        <h3 class="mb-0">KES {{ total_sales|floatformat:0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total VAT</h6>
+                        <h3 class="mb-0">KES {{ total_vat|floatformat:0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-receipt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Profit</h6>
+                        <h3 class="mb-0">KES {{ total_profit|floatformat:0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">VAT Rate</h6>
+                        <h3 class="mb-0">{{ vat_summary.vat_percentage|floatformat:1 }}%</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <!-- Monthly Sales Trend -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-area me-2"></i>
+                    Monthly Sales Trend ({{ date_range }})
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Day of Week Analysis -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-week me-2"></i>
+                    Sales by Day of Week
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="dayOfWeekChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <!-- Weekly Sales -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Weekly Sales (Last 12 Weeks)
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="weeklySalesChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Performing Months -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-trophy me-2"></i>
+                    Top Performing Months
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Sales</th>
+                                <th>VAT</th>
+                                <th>Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in top_months %}
+                            <tr>
+                                <td><strong>{{ month.month }}</strong></td>
+                                <td class="text-primary">KES {{ month.sales|floatformat:0 }}</td>
+                                <td class="text-success">KES {{ month.vat|floatformat:0 }}</td>
+                                <td class="text-info">KES {{ month.profit|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="row mb-4">
+    <!-- Seller Performance -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Top Seller Performance
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="sellerPerformanceChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Performance -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-boxes me-2"></i>
+                    Category Performance
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryPerformanceChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- VAT Analysis -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-receipt me-2"></i>
+                    VAT Analysis
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-primary">{{ vat_summary.total_vat_collected|floatformat:0 }}</h4>
+                        <p class="text-muted mb-0">Total VAT Collected</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-success">{{ vat_summary.avg_vat_rate|floatformat:1 }}%</h4>
+                        <p class="text-muted mb-0">Average VAT Rate</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-info">{{ vat_summary.vat_percentage|floatformat:1 }}%</h4>
+                        <p class="text-muted mb-0">VAT % of Sales</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h4 class="text-warning">{{ total_sales|floatformat:0 }}</h4>
+                        <p class="text-muted mb-0">Total Sales Value</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart.js configuration
+Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
+Chart.defaults.color = '#6c757d';
+
+// Monthly Sales Chart
+const monthlyCtx = document.getElementById('monthlySalesChart').getContext('2d');
+const monthlyChart = new Chart(monthlyCtx, {
+    type: 'line',
+    data: {
+        labels: {{ months_labels|safe }},
+        datasets: [{
+            label: 'Sales (KES)',
+            data: {{ monthly_sales|safe }},
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: 'VAT (KES)',
+            data: {{ monthly_vat|safe }},
+            borderColor: '#198754',
+            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: 'Profit (KES)',
+            data: {{ monthly_profit|safe }},
+            borderColor: '#0dcaf0',
+            backgroundColor: 'rgba(13, 202, 240, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: true,
+                text: 'Monthly Sales, VAT, and Profit Trends'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'KES ' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Day of Week Chart
+const dayCtx = document.getElementById('dayOfWeekChart').getContext('2d');
+const dayChart = new Chart(dayCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ day_labels|safe }},
+        datasets: [{
+            data: {{ day_of_week_sales|safe }},
+            backgroundColor: [
+                '#0d6efd', '#6610f2', '#6f42c1', '#d63384',
+                '#dc3545', '#fd7e14', '#ffc107'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Weekly Sales Chart
+const weeklyCtx = document.getElementById('weeklySalesChart').getContext('2d');
+const weeklyChart = new Chart(weeklyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ weekly_labels|safe }},
+        datasets: [{
+            label: 'Weekly Sales (KES)',
+            data: {{ weekly_sales|safe }},
+            backgroundColor: 'rgba(13, 110, 253, 0.8)',
+            borderColor: '#0d6efd',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'KES ' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Seller Performance Chart
+const sellerCtx = document.getElementById('sellerPerformanceChart').getContext('2d');
+const sellerChart = new Chart(sellerCtx, {
+    type: 'bar',
+    data: {
+        labels: [{% for seller in seller_performance %}'{{ seller.seller_name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Sales (KES)',
+            data: [{% for seller in seller_performance %}{{ seller.total_sales }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: 'rgba(25, 135, 84, 0.8)',
+            borderColor: '#198754',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'KES ' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Category Performance Chart
+const categoryCtx = document.getElementById('categoryPerformanceChart').getContext('2d');
+const categoryChart = new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [{% for category in category_performance %}'{{ category.product__category }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for category in category_performance %}{{ category.total_revenue }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: [
+                '#0d6efd', '#6610f2', '#6f42c1', '#d63384',
+                '#dc3545', '#fd7e14', '#ffc107', '#198754',
+                '#0dcaf0', '#6c757d'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Date range selector
+document.getElementById('dateRange').addEventListener('change', function() {
+    const months = this.value;
+    window.location.href = `{% url 'core:analytics' %}?months=${months}`;
+});
+</script>
+{% endblock %}

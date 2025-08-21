@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block title %}Products - Nicmah System{% endblock %}
+{% block page_title %}Product Management{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'admin:core_product_add' %}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i>Add Product
+    </a>
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-download me-1"></i>Export
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=products&format=excel">Excel</a></li>
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=products&format=csv">CSV</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filter Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ request.GET.search }}" placeholder="Product name, SKU, or category">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                                <option value="{{ category }}" {% if request.GET.category == category %}selected{% endif %}>
+                                    {{ category }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="stock_status" class="form-label">Stock Status</label>
+                        <select class="form-select" id="stock_status" name="stock_status">
+                            <option value="">All Status</option>
+                            <option value="in_stock" {% if request.GET.stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                            <option value="low_stock" {% if request.GET.stock_status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                            <option value="out_of_stock" {% if request.GET.stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Products ({{ page_obj.paginator.count }} total)
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Category</th>
+                                    <th>Stock</th>
+                                    <th>Cost Price</th>
+                                    <th>Selling Price</th>
+                                    <th>Profit Margin</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-box fa-2x text-primary"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h6 class="mb-0">
+                                                    <a href="{% url 'core:product_detail' product.id %}" class="text-decoration-none">
+                                                        {{ product.name }}
+                                                    </a>
+                                                </h6>
+                                                <small class="text-muted">{{ product.unit }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <code>{{ product.sku }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ product.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if product.current_stock == 0 %}
+                                            <span class="badge bg-danger">{{ product.current_stock }}</span>
+                                        {% elif product.current_stock <= product.reorder_level %}
+                                            <span class="badge bg-warning">{{ product.current_stock }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ product.current_stock }}</span>
+                                        {% endif %}
+                                        <small class="text-muted d-block">Reorder: {{ product.reorder_level }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">KES {{ product.cost_price|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-success fw-bold">KES {{ product.selling_price|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if product.gross_profit_margin >= 30 %}
+                                            <span class="badge bg-success">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                        {% elif product.gross_profit_margin >= 15 %}
+                                            <span class="badge bg-warning">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ product.gross_profit_margin|floatformat:1 }}%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'core:product_detail' product.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'admin:core_product_change' product.id %}" 
+                                               class="btn btn-outline-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'admin:core_batch_add' %}?product={{ product.id }}" 
+                                               class="btn btn-outline-info" title="Add Batch">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                        <nav aria-label="Products pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.stock_status %}&stock_status={{ request.GET.stock_status }}{% endif %}">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.stock_status %}&stock_status={{ request.GET.stock_status }}{% endif %}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.stock_status %}&stock_status={{ request.GET.stock_status }}{% endif %}">
+                                                {{ num }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.stock_status %}&stock_status={{ request.GET.stock_status }}{% endif %}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.stock_status %}&stock_status={{ request.GET.stock_status }}{% endif %}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No products found</h5>
+                        <p class="text-muted">
+                            {% if request.GET.search or request.GET.category or request.GET.stock_status %}
+                                Try adjusting your search criteria or 
+                                <a href="{% url 'core:product_list' %}">view all products</a>
+                            {% else %}
+                                <a href="{% url 'admin:core_product_add' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i>Add Your First Product
+                                </a>
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card border-left-primary">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Products</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ page_obj.paginator.count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-left-success">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Products</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-left-warning">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Low Stock</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ low_stock_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-left-danger">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Out of Stock</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ out_of_stock_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-submit form when category or stock status changes
+document.getElementById('category').addEventListener('change', function() {
+    this.form.submit();
+});
+
+document.getElementById('stock_status').addEventListener('change', function() {
+    this.form.submit();
+});
+
+// Clear search functionality
+function clearSearch() {
+    document.getElementById('search').value = '';
+    document.getElementById('category').value = '';
+    document.getElementById('stock_status').value = '';
+    document.querySelector('form').submit();
+}
+
+// Add clear button if there are active filters
+if (window.location.search) {
+    const form = document.querySelector('form');
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'btn btn-outline-secondary ms-2';
+    clearBtn.innerHTML = '<i class="fas fa-times me-1"></i>Clear';
+    clearBtn.onclick = clearSearch;
+    form.querySelector('.col-md-2 div').appendChild(clearBtn);
+}
+</script>
+{% endblock %}

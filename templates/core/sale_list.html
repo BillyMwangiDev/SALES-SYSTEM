@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% block title %}Sales - Nicmah System{% endblock %}
+{% block page_title %}Sales Management{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'core:sales_entry' %}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i>New Sale
+    </a>
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="fas fa-download me-1"></i>Export
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=sales&format=excel">Sales Report (Excel)</a></li>
+        <li><a class="dropdown-item" href="{% url 'core:export_data' %}?type=sales&format=csv">Sales Report (CSV)</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filter Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                                                               value="{{ request.GET.search }}" placeholder="Invoice or seller name">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="{{ request.GET.start_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" 
+                               value="{{ request.GET.end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="sale_type" class="form-label">Sale Type</label>
+                        <select class="form-select" id="sale_type" name="sale_type">
+                            <option value="">All Types</option>
+                            {% for type_code, type_name in sale_types %}
+                                <option value="{{ type_code }}" {% if request.GET.sale_type == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Summary Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Sales
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            KES {{ total_sales|default:0|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Sales Count
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ page_obj.paginator.count|default:0 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Average Sale
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            KES {{ avg_sale|default:0|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Active Sellers
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ unique_sellers|default:0 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Sales Records ({{ page_obj.paginator.count }} total)
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Seller</th>
+                                    <th>Sale Type</th>
+                                    <th>Items</th>
+                                    <th>Total Amount</th>
+                                    <th>Discount</th>
+                                    <th>Net Amount</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <i class="fas fa-receipt fa-2x text-primary"></i>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h6 class="mb-0">
+                                                    <a href="{% url 'admin:core_sale_change' sale.id %}" class="text-decoration-none">
+                                                        {{ sale.invoice_number }}
+                                                    </a>
+                                                </h6>
+                                                
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>{{ sale.seller_name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if sale.sale_type == 'cash' %}
+                                            <span class="badge bg-success">{{ sale.get_sale_type_display }}</span>
+                                        {% elif sale.sale_type == 'credit' %}
+                                            <span class="badge bg-warning">{{ sale.get_sale_type_display }}</span>
+                                        {% elif sale.sale_type == 'mpesa' %}
+                                            <span class="badge bg-info">{{ sale.get_sale_type_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ sale.get_sale_type_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ sale.items.count }} items</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-success fw-bold">KES {{ sale.total_amount|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if sale.discount > 0 %}
+                                            <span class="text-danger">-KES {{ sale.discount|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-primary fw-bold">KES {{ sale.net_amount|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="text-nowrap">
+                                            <div class="fw-bold">{{ sale.sale_date|date:"M d, Y" }}</div>
+                                            <small class="text-muted">{{ sale.sale_date|date:"H:i" }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'admin:core_sale_change' sale.id %}" 
+                                               class="btn btn-outline-primary" title="View/Edit Sale">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'admin:core_saleitem_add' %}?sale={{ sale.id }}" 
+                                               class="btn btn-outline-success" title="Add Items">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-info" 
+                                                    onclick="showSaleDetails({{ sale.id }})" title="Quick View">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                        <nav aria-label="Sales pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if request.GET.sale_type %}&sale_type={{ request.GET.sale_type }}{% endif %}">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if request.GET.sale_type %}&sale_type={{ request.GET.sale_type }}{% endif %}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if request.GET.sale_type %}&sale_type={{ request.GET.sale_type }}{% endif %}">
+                                                {{ num }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if request.GET.sale_type %}&sale_type={{ request.GET.sale_type }}{% endif %}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if request.GET.sale_type %}&sale_type={{ request.GET.sale_type }}{% endif %}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No sales found</h5>
+                        <p class="text-muted">
+                            {% if request.GET.search or request.GET.start_date or request.GET.end_date or request.GET.sale_type %}
+                                Try adjusting your search criteria or 
+                                <a href="{% url 'core:sale_list' %}">view all sales</a>
+                            {% else %}
+                                <a href="{% url 'admin:core_sale_add' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i>Record Your First Sale
+                                </a>
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sale Details Modal -->
+<div class="modal fade" id="saleDetailsModal" tabindex="-1" aria-labelledby="saleDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="saleDetailsModalLabel">Sale Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="saleDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="editSaleBtn">Edit Sale</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Clear filters function
+function clearFilters() {
+    document.getElementById('search').value = '';
+    document.getElementById('start_date').value = '';
+    document.getElementById('end_date').value = '';
+    document.getElementById('sale_type').value = '';
+    document.querySelector('form').submit();
+}
+
+// Show sale details in modal
+function showSaleDetails(saleId) {
+    // This would typically fetch sale details via AJAX
+    // For now, we'll show a placeholder
+    document.getElementById('saleDetailsContent').innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+            <p>Loading sale details...</p>
+        </div>
+    `;
+    
+    // Update edit button href
+    document.getElementById('editSaleBtn').href = `/admin/core/sale/${saleId}/change/`;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+    modal.show();
+    
+    // In a real implementation, you would fetch the sale details here
+    // fetch(`/api/sales/${saleId}/`)
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         // Update modal content with sale details
+    //     });
+}
+
+// Auto-submit form when sale type changes
+document.getElementById('sale_type').addEventListener('change', function() {
+    this.form.submit();
+});
+
+// Add clear button if there are active filters
+if (window.location.search) {
+    const form = document.querySelector('form');
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'btn btn-outline-secondary ms-2';
+    clearBtn.innerHTML = '<i class="fas fa-times me-1"></i>Clear';
+    clearBtn.onclick = clearFilters;
+    form.querySelector('.col-md-3 div').appendChild(clearBtn);
+}
+
+// Calculate and display summary statistics
+document.addEventListener('DOMContentLoaded', function() {
+    // This could be enhanced to calculate totals from the displayed data
+    // or fetch from the server via AJAX
+});
+</script>
+{% endblock %}

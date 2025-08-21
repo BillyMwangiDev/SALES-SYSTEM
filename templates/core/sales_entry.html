@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+
+{% block title %}Daily Sales Entry - Nicmah System{% endblock %}
+
+{% block page_title %}Daily Sales Entry{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'core:sale_list' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-2"></i>Back to Sales
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Sales Entry Form -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-cart-plus me-2"></i>
+                    Record Daily Sales
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="salesForm">
+                    {% csrf_token %}
+                    
+                    <!-- Seller Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="seller_name" class="form-label">Seller Name *</label>
+                            <input type="text" class="form-control" id="seller_name" name="seller_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sale_type" class="form-label">Sale Type</label>
+                            <select class="form-select" id="sale_type" name="sale_type">
+                                {% for value, label in sale_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="discount" class="form-label">Discount (KES)</label>
+                            <input type="number" class="form-control" id="discount" name="discount" value="0" min="0" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <!-- Sale Items -->
+                    <div class="mb-4">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-boxes me-2"></i>
+                            Sale Items
+                        </h6>
+                        
+                        <div id="saleItems">
+                            <!-- Items will be added here dynamically -->
+                        </div>
+                        
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSaleItem()">
+                            <i class="fas fa-plus me-2"></i>Add Item
+                        </button>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-4">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Any additional notes about this sale..."></textarea>
+                    </div>
+                    
+                    <!-- Totals -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-muted">Summary</h6>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal (Excluding VAT):</span>
+                                        <span id="subtotal">KES 0.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Total VAT:</span>
+                                        <span id="totalVat">KES 0.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Discount:</span>
+                                        <span id="discountDisplay">KES 0.00</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Total (Including VAT):</span>
+                                        <span id="grandTotal">KES 0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success btn-lg w-100" id="submitBtn" disabled>
+                                <i class="fas fa-save me-2"></i>
+                                Record Sale
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden field for items data -->
+                    <input type="hidden" name="items_data" id="itemsData" value="[]">
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Selection Panel -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-box me-2"></i>
+                    Available Products
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="productSearch" placeholder="Search products...">
+                </div>
+                
+                <div id="productList" style="max-height: 400px; overflow-y: auto;">
+                    {% for product in products %}
+                        <div class="product-item border-bottom py-2" 
+                             data-product-id="{{ product.id }}" 
+                             data-product-name="{{ product.name }}" 
+                             data-selling-price="{{ product.selling_price }}"
+                             data-vat-rate="{{ product.vat_rate }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ product.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ product.sku }} | {{ product.category }}</small>
+                                    <br>
+                                    <small class="text-info">VAT: {{ product.vat_rate }}%</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary">KES {{ product.selling_price }}</div>
+                                    <small class="text-muted">Stock: {{ product.current_stock }}</small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="selectProduct({{ product.id }}, '{{ product.name }}', {{ product.selling_price }})">
+                                <i class="fas fa-plus me-1"></i>Add
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item Template (Hidden) -->
+<template id="itemTemplate">
+    <div class="sale-item border rounded p-3 mb-3 bg-light">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Product</label>
+                <input type="text" class="form-control" readonly>
+                <input type="hidden" name="product_id">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Batch</label>
+                <select class="form-select" name="batch_id">
+                    <option value="">Select Batch</option>
+                    {% for batch in batches %}
+                        {% if batch.product.id == product.id %}
+                            <option value="{{ batch.id }}">{{ batch.batch_number }} ({{ batch.quantity }} left)</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Quantity</label>
+                <input type="number" class="form-control quantity-input" name="quantity" min="1" value="1" onchange="updateItemTotal(this)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Unit Price (KES)</label>
+                <input type="number" class="form-control price-input" name="unit_price" min="0" step="0.01" onchange="updateItemTotal(this)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Total</label>
+                <input type="text" class="form-control item-total" readonly>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeSaleItem(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let itemCounter = 0;
+
+function addSaleItem() {
+    const template = document.getElementById('itemTemplate');
+    const clone = template.content.cloneNode(true);
+    
+    // Update IDs and names
+    const itemDiv = clone.querySelector('.sale-item');
+    itemDiv.id = `item-${itemCounter}`;
+    
+    const inputs = clone.querySelectorAll('input');
+    inputs.forEach(input => {
+        if (input.name) {
+            input.name = `${input.name}_${itemCounter}`;
+        }
+    });
+    
+    document.getElementById('saleItems').appendChild(clone);
+    itemCounter++;
+    
+    updateSubmitButton();
+}
+
+function selectProduct(productId, productName, sellingPrice) {
+    // Find the first empty item or create a new one
+    let itemDiv = document.querySelector('.sale-item:not(.filled)');
+    if (!itemDiv) {
+        addSaleItem();
+        itemDiv = document.querySelector('.sale-item:last-child');
+    }
+    
+    // Fill in the product details
+    itemDiv.querySelector('input[readonly]').value = productName;
+    itemDiv.querySelector('input[name*="product_id"]').value = productId;
+    itemDiv.querySelector('input[name*="unit_price"]').value = sellingPrice;
+    itemDiv.querySelector('input[name*="quantity"]').value = 1;
+    
+    // Mark as filled and update total
+    itemDiv.classList.add('filled');
+    updateItemTotal(itemDiv.querySelector('.quantity-input'));
+    
+    updateSubmitButton();
+}
+
+function updateItemTotal(input) {
+    const itemDiv = input.closest('.sale-item');
+    const quantity = parseFloat(itemDiv.querySelector('.quantity-input').value) || 0;
+    const price = parseFloat(itemDiv.querySelector('.price-input').value) || 0;
+    const total = quantity * price;
+    
+    itemDiv.querySelector('.item-total').value = `KES ${total.toFixed(2)}`;
+    updateTotals();
+}
+
+function removeSaleItem(button) {
+    button.closest('.sale-item').remove();
+    updateTotals();
+    updateSubmitButton();
+}
+
+function updateTotals() {
+    let subtotal = 0;
+    let totalVat = 0;
+    
+    document.querySelectorAll('.sale-item').forEach(itemDiv => {
+        const quantity = parseFloat(itemDiv.querySelector('.quantity-input').value) || 0;
+        const price = parseFloat(itemDiv.querySelector('.price-input').value) || 0;
+        const productId = itemDiv.querySelector('input[name*="product_id"]').value;
+        
+        if (productId && quantity > 0 && price > 0) {
+            const itemSubtotal = quantity * price;
+            subtotal += itemSubtotal;
+            
+            // Get VAT rate from product data (default to 16% if not available)
+            const productElement = document.querySelector(`[data-product-id="${productId}"]`);
+            const vatRate = productElement ? parseFloat(productElement.dataset.vatRate) || 16.0 : 16.0;
+            const itemVat = (itemSubtotal * vatRate) / 100;
+            totalVat += itemVat;
+        }
+    });
+    
+    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const grandTotal = subtotal + totalVat - discount;
+    
+    document.getElementById('subtotal').textContent = `KES ${subtotal.toFixed(2)}`;
+    document.getElementById('totalVat').textContent = `KES ${totalVat.toFixed(2)}`;
+    document.getElementById('discountDisplay').textContent = `KES ${discount.toFixed(2)}`;
+    document.getElementById('grandTotal').textContent = `KES ${grandTotal.toFixed(2)}`;
+}
+
+function updateSubmitButton() {
+    const hasItems = document.querySelectorAll('.sale-item').length > 0;
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = !hasItems;
+}
+
+function collectItemsData() {
+    const items = [];
+    document.querySelectorAll('.sale-item').forEach(itemDiv => {
+        const productId = itemDiv.querySelector('input[name*="product_id"]').value;
+        const batchId = itemDiv.querySelector('input[name*="batch_id"]').value;
+        const quantity = itemDiv.querySelector('.quantity-input').value;
+        const unitPrice = itemDiv.querySelector('.price-input').value;
+        
+        if (productId && quantity && unitPrice) {
+            items.push({
+                product_id: productId,
+                batch_id: batchId,
+                quantity: quantity,
+                unit_price: unitPrice
+            });
+        }
+    });
+    
+    document.getElementById('itemsData').value = JSON.stringify(items);
+}
+
+// Event listeners
+document.getElementById('discount').addEventListener('input', updateTotals);
+
+document.getElementById('salesForm').addEventListener('submit', function(e) {
+    collectItemsData();
+    
+    // Validate that we have items
+    const items = JSON.parse(document.getElementById('itemsData').value);
+    if (items.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one item to the sale.');
+        return false;
+    }
+});
+
+// Product search functionality
+document.getElementById('productSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.product-item').forEach(item => {
+        const productName = item.dataset.productName.toLowerCase();
+        const productSku = item.querySelector('small').textContent.toLowerCase();
+        
+        if (productName.includes(searchTerm) || productSku.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateSubmitButton();
+});
+</script>
+{% endblock %}

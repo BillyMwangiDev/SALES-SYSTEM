@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Nicmah System{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'core:sales_entry' %}" class="btn btn-success">
+        <i class="fas fa-cart-plus me-2"></i>Record Daily Sales
+    </a>
+    <a href="{% url 'core:reports' %}" class="btn btn-outline-primary">
+        <i class="fas fa-chart-bar me-2"></i>View Reports
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Key Metrics Cards -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card border-primary h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Daily Sales
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            KES {{ daily_sales|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card border-success h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Monthly Sales
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            KES {{ monthly_sales|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card border-info h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Total Stock Value
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            KES {{ total_stock_value|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card border-warning h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Active Sellers
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ unique_sellers }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Sales Trend Chart -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Sales Trend (Last 7 Days)</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="salesTrendChart" width="100%" height="40"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Products Chart -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Top Products (30 Days)</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="topProductsChart" width="100%" height="40"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts and Recent Activity Row -->
+<div class="row">
+    <!-- Low Stock Alerts -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Low Stock Alerts
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if low_stock_products %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Current Stock</th>
+                                    <th>Reorder Level</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in low_stock_products %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'core:product_detail' product.id %}">
+                                            {{ product.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ product.total_stock }}</span>
+                                    </td>
+                                    <td>{{ product.reorder_level }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">Low Stock</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No low stock alerts at the moment.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiry Alerts -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">
+                    <i class="fas fa-clock me-2"></i>Expiring Soon (30 Days)
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if expiry_30_days %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Days Left</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for batch in expiry_30_days %}
+                                <tr>
+                                    <td>{{ batch.product.name }}</td>
+                                    <td>{{ batch.batch_number }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ batch.days_to_expiry }} days</span>
+                                    </td>
+                                    <td>{{ batch.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No products expiring in the next 30 days.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales Row -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-history me-2"></i>Recent Sales
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if recent_sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Seller</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                    <th>Date</th>
+                                    <th>Items</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in recent_sales %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ sale.invoice_number }}</strong>
+                                    </td>
+                                    <td>{{ sale.seller_name }}</td>
+                                    <td>
+                                        <span class="text-success fw-bold">
+                                            KES {{ sale.total_amount|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ sale.get_sale_type_display }}</span>
+                                    </td>
+                                    <td>{{ sale.sale_date|date:"M d, Y H:i" }}</td>
+                                    <td>{{ sale.items.count }} items</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No recent sales to display.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sales Trend Chart
+const salesTrendCtx = document.getElementById('salesTrendChart').getContext('2d');
+const salesTrendChart = new Chart(salesTrendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ sales_trend|safe }},
+        datasets: [{
+            label: 'Daily Sales (KES)',
+            data: {{ sales_trend|safe }},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'KES ' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Top Products Chart
+const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+const topProductsChart = new Chart(topProductsCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ top_products|safe }},
+        datasets: [{
+            data: {{ top_products|safe }},
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40',
+                '#FF6384',
+                '#C9CBCF',
+                '#4BC0C0',
+                '#FF6384'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Auto-refresh dashboard data every 5 minutes
+setInterval(function() {
+    fetch('{% url "core:api_dashboard_data" %}?days=7')
+        .then(response => response.json())
+        .then(data => {
+            // Update sales trend chart
+            salesTrendChart.data.labels = data.sales_trend.map(item => item.date);
+            salesTrendChart.data.datasets[0].data = data.sales_trend.map(item => item.sales);
+            salesTrendChart.update();
+            
+            // Update top products chart
+            topProductsChart.data.labels = data.top_products.map(item => item.product__name);
+            topProductsChart.data.datasets[0].data = data.top_products.map(item => item.total_quantity);
+            topProductsChart.update();
+        })
+        .catch(error => console.error('Error updating dashboard:', error));
+}, 300000); // 5 minutes
+</script>
+{% endblock %}
