@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Point of Sale - Nicmah System{% endblock %}
+
+{% block page_title %}Point of Sale{% endblock %}
+
+{{ products_data|json_script:"products-data" }}
+
+{% block extra_js %}
+<script>
+    let cart = [];
+    const products = JSON.parse(document.getElementById('products-data').textContent);
+
+    function addToCart(productId) {
+        const product = products[productId];
+        const existingItem = cart.find(item => item.id === productId);
+        
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({
+                id: productId,
+                name: product.name,
+                price: product.price,
+                quantity: 1,
+                vat_rate: product.vat_rate
+            });
+        }
+        renderCart();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function updateQuantity(index, delta) {
+        cart[index].quantity += delta;
+        if (cart[index].quantity <= 0) {
+            removeFromCart(index);
+        } else {
+            renderCart();
+        }
+    }
+
+    function renderCart() {
+        const cartElement = document.getElementById('cart-items');
+        const subtotalElement = document.getElementById('cart-subtotal');
+        const vatElement = document.getElementById('cart-vat');
+        const totalElement = document.getElementById('cart-total');
+
+        cartElement.innerHTML = '';
+        let subtotal = 0;
+        let totalVat = 0;
+
+        if (cart.length === 0) {
+            cartElement.innerHTML = `
+                <div class="text-center py-5" style="color:#334155;">
+                    <i class="fas fa-shopping-cart fa-2x mb-3" style="opacity:0.3;"></i>
+                    <p style="font-size:0.83rem;margin:0;">Cart is empty</p>
+                </div>`;
+        }
+
+        cart.forEach((item, index) => {
+            const itemVat = (item.price * item.quantity * item.vat_rate) / 100;
+            subtotal += item.price * item.quantity;
+            totalVat += itemVat;
+
+            cartElement.innerHTML += `
+                <div class="cart-line">
+                    <div style="min-width:0;flex:1;">
+                        <div class="cart-line-name">${item.name}</div>
+                        <div class="cart-line-price">KES ${item.price.toFixed(2)} each</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-1 ms-2">
+                        <button class="qty-btn" onclick="updateQuantity(${index}, -1)">−</button>
+                        <span class="qty-num">${item.quantity}</span>
+                        <button class="qty-btn" onclick="updateQuantity(${index}, 1)">+</button>
+                        <button class="remove-btn" onclick="removeFromCart(${index})">
+                            <i class="fas fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        subtotalElement.innerText = subtotal.toFixed(2);
+        vatElement.innerText = totalVat.toFixed(2);
+        totalElement.innerText = (subtotal + totalVat).toFixed(2);
+        
+        document.getElementById('items_data').value = JSON.stringify(cart);
+    }
+
+    // Sync customer dropdown → hidden form field
+    document.getElementById('customer-select').addEventListener('change', function() {
+        document.getElementById('form-customer-id').value = this.value;
+    });
+
+    // Filter products
+    document.getElementById('product-search').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.product-card').forEach(card => {
+            const name = card.dataset.name.toLowerCase();
+            const sku = card.dataset.sku.toLowerCase();
+            if (name.includes(term) || sku.includes(term)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row h-100">
+    <!-- Product Grid -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="input-group w-50">
+                    <span class="input-group-text pos-search-icon">
+                        <i class="fas fa-magnifying-glass" style="font-size:0.75rem;"></i>
+                    </span>
+                    <input type="text" id="product-search" class="form-control" placeholder="Search products…">
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        All Categories
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">Electronics</a></li>
+                        <li><a class="dropdown-item" href="#">Groceries</a></li>
+                        <li><a class="dropdown-item" href="#">Fashion</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body overflow-auto" style="max-height: 70vh;">
+                <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-3" id="product-grid">
+                    {% for product in products %}
+                    <div class="col product-card" data-name="{{ product.name }}" data-sku="{{ product.sku }}">
+                        <div class="card h-100 grow-hover" onclick="addToCart('{{ product.id }}')">
+                            <div class="card-body p-2 text-center">
+                                <div class="product-placeholder mb-2">
+                                    {% if product.image %}
+                                        <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}" style="max-height:100px;">
+                                    {% else %}
+                                        <i class="fas fa-box" style="opacity:0.2;"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="product-name">{{ product.name }}</div>
+                                <div class="product-price">KES {{ product.selling_price }}</div>
+                                <div class="product-stock">{{ product.current_stock }} in stock</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Cart & Checkout -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0" style="background: var(--c-surface); border: 1px solid var(--c-border) !important;">
+            <div class="card-header d-flex align-items-center gap-2" style="background: var(--c-sidebar); border-bottom: 1px solid var(--c-border);">
+                <div style="width:28px;height:28px;border-radius:7px;background:var(--c-teal-dim);display:flex;align-items:center;justify-content:center;color:var(--c-teal);font-size:0.7rem;">
+                    <i class="fas fa-basket-shopping"></i>
+                </div>
+                <h5 class="mb-0" style="font-family:'Outfit',sans-serif;font-size:0.9rem;font-weight:600;color:#CBD5E1;">Current Order</h5>
+            </div>
+            <div class="card-body d-flex flex-column p-0">
+                <!-- Cart Items -->
+                <div id="cart-items" class="flex-grow-1 overflow-auto p-3" style="max-height: 42vh;">
+                    <div class="text-center py-5" style="color:#334155;">
+                        <i class="fas fa-shopping-cart fa-2x mb-3" style="opacity:0.3;"></i>
+                        <p style="font-size:0.83rem;margin:0;">Cart is empty</p>
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="p-3 border-top" style="border-color: var(--c-border-soft) !important; background: var(--c-sidebar);">
+                    <!-- Customer Selector -->
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:0.68rem;letter-spacing:0.07em;text-transform:uppercase;color:#475569;">Customer</label>
+                        <select class="form-select form-select-sm" id="customer-select" style="font-size:0.82rem;">
+                            <option value="">Walk-in Customer</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.loyalty_points }} pts)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-1" style="font-size:0.82rem;color:#475569;">
+                        <span>Subtotal</span>
+                        <span style="color:#94A3B8;">KES <span id="cart-subtotal">0.00</span></span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2" style="font-size:0.82rem;color:#475569;">
+                        <span>VAT</span>
+                        <span style="color:#94A3B8;">KES <span id="cart-vat">0.00</span></span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 pt-2" style="border-top: 1px solid var(--c-border-soft);">
+                        <span style="font-family:'Outfit',sans-serif;font-weight:600;font-size:0.95rem;color:#CBD5E1;">Total</span>
+                        <span style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.05rem;color:var(--c-teal-light);">KES <span id="cart-total">0.00</span></span>
+                    </div>
+
+                    <form action="{% url 'core:sales_entry' %}" method="POST" id="checkout-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="items_data" id="items_data">
+                        <input type="hidden" name="customer_id" id="form-customer-id">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="submit" name="payment_type" value="cash" class="pay-btn pay-cash w-100">
+                                    <i class="fas fa-money-bill-wave d-block mb-1" style="font-size:1.1rem;"></i>
+                                    <span>Cash</span>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="submit" name="payment_type" value="mpesa" class="pay-btn pay-mpesa w-100">
+                                    <i class="fas fa-mobile-alt d-block mb-1" style="font-size:1.1rem;"></i>
+                                    <span>M-Pesa</span>
+                                </button>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" name="payment_type" value="credit" class="pay-btn pay-credit w-100" style="padding:0.5rem;">
+                                    <i class="fas fa-credit-card me-2"></i> Credit / Pay Later
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ── POS Product Cards ─── */
+    .grow-hover {
+        transition: transform 0.18s, box-shadow 0.18s;
+        cursor: pointer;
+    }
+    .grow-hover:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 24px rgba(20,184,166,0.18), 0 0 0 1px rgba(20,184,166,0.2) !important;
+        z-index: 10;
+    }
+    .cursor-pointer { cursor: pointer; }
+
+    .product-card .card {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border) !important;
+    }
+
+    .product-placeholder {
+        height: 100px;
+        background: var(--c-sidebar);
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1E293B;
+        font-size: 1.6rem;
+    }
+
+    .product-name {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #CBD5E1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 0.2rem;
+    }
+
+    .product-price {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: var(--c-teal-light);
+    }
+
+    .product-stock {
+        font-size: 0.68rem;
+        color: #475569;
+    }
+
+    /* Cart line items */
+    .cart-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--c-border-soft);
+    }
+    .cart-line:last-child { border-bottom: none; }
+
+    .cart-line-name {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #CBD5E1;
+        margin-bottom: 0.15rem;
+    }
+
+    .cart-line-price {
+        font-size: 0.72rem;
+        color: #475569;
+    }
+
+    .qty-btn {
+        width: 22px; height: 22px;
+        border-radius: 5px;
+        border: 1px solid var(--c-border);
+        background: var(--c-surface-2);
+        color: #94A3B8;
+        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s;
+        padding: 0;
+    }
+    .qty-btn:hover { background: var(--c-surface-2); color: #E2E8F0; border-color: #475569; }
+
+    .qty-num {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #CBD5E1;
+        min-width: 18px;
+        text-align: center;
+    }
+
+    .remove-btn {
+        width: 22px; height: 22px;
+        border-radius: 5px;
+        border: none;
+        background: rgba(244,63,94,0.1);
+        color: #FB7185;
+        font-size: 0.65rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.12s;
+        margin-left: 0.35rem;
+        padding: 0;
+    }
+    .remove-btn:hover { background: rgba(244,63,94,0.2); }
+
+    /* ── Payment Buttons ─── */
+    .pay-btn {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.82rem;
+        border: none;
+        border-radius: 8px;
+        padding: 0.7rem 0.5rem;
+        cursor: pointer;
+        transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .pay-btn:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+    }
+    .pay-btn:active { transform: translateY(0); }
+
+    .pay-cash {
+        background: linear-gradient(135deg, #059669, #10B981);
+        color: white;
+        box-shadow: 0 2px 10px rgba(16,185,129,0.25);
+    }
+    .pay-cash:hover { box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+
+    .pay-mpesa {
+        background: linear-gradient(135deg, #0D9488, #14B8A6);
+        color: white;
+        box-shadow: 0 2px 10px rgba(20,184,166,0.25);
+    }
+    .pay-mpesa:hover { box-shadow: 0 4px 16px rgba(20,184,166,0.35); }
+
+    .pay-credit {
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.3) !important;
+        color: #FCD34D;
+        flex-direction: row;
+    }
+    .pay-credit:hover {
+        background: rgba(245,158,11,0.15);
+        border-color: rgba(245,158,11,0.5) !important;
+    }
+
+    /* Search bar override */
+    #product-search {
+        background: var(--c-sidebar) !important;
+        border: 1px solid var(--c-border) !important;
+        color: #E2E8F0 !important;
+        font-family: 'Figtree', sans-serif;
+        font-size: 0.85rem;
+    }
+    #product-search:focus {
+        border-color: var(--c-teal) !important;
+        box-shadow: 0 0 0 3px rgba(20,184,166,0.15) !important;
+    }
+    #product-search::placeholder { color: #334155 !important; }
+
+    .pos-search-icon {
+        background: var(--c-sidebar) !important;
+        border: 1px solid var(--c-border) !important;
+        border-right: none !important;
+        color: #334155 !important;
+    }
+</style>
+{% endblock %}

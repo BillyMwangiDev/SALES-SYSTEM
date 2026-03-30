@@ -2,14 +2,42 @@
 
 A comprehensive Django-based web application for managing business operations including sales tracking, inventory management, financial reporting, and automated backups.
 
+## 📸 Screenshots
+
+### Login
+![Login Page](screenshots/login.png)
+> Secure login screen with a clean, modern dark theme — *"Run your business smarter."*
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+> At-a-glance overview of today's sales, stock value, customer count, low stock alerts, and expiry warnings.
+
+### Product Management
+![Product Management](screenshots/product-management.png)
+> Browse, filter, and manage your entire product catalog with stock status indicators.
+
+### Business Reports
+![Business Reports](screenshots/business-reports.png)
+> Date-range reports covering total sales, purchases, VAT, and sales breakdown by payment type and category.
+
+### Analytics Dashboard
+![Analytics Dashboard](screenshots/analytics-dashboard.png)
+> Deep-dive charts: 12-month sales trends, weekly performance, top sellers, and category performance.
+
+---
+
 ## ✨ Features
 
 ### 🎯 Core Business Functions
-- **Sales Management**: Track sales, sellers, and revenue
-- **Inventory Control**: Product management with batch tracking and expiry dates
+- **Point of Sale (POS)**: Touch-friendly POS interface for fast transaction processing
+- **Sales Management**: Track sales, sellers, and revenue with payment status
+- **Customer Management**: Customer profiles with loyalty points and debt tracking
+- **Supplier Management**: Supplier directory with contact details and lead times
+- **Purchase Orders**: Create and track stock orders from suppliers (draft → sent → received)
+- **Inventory Control**: Product management with batch tracking, expiry dates, and product images
 - **Financial Reporting**: COGS, Gross Profit, and sales analytics
 - **Stock Management**: Reorder alerts, low stock warnings, and stock adjustments
-- **Seller Management**: Track sales performance by individual workers
+- **Seller Management**: Track sales performance and commissions by individual sellers
 - **VAT Tracking**: Comprehensive Value Added Tax tracking and calculations
 
 ### 📊 Analytics & Reporting
@@ -131,12 +159,15 @@ nicmah_system/
 ├── templates/               # HTML templates
 │   ├── base.html            # Base template
 │   └── core/                # App templates
-│       ├── dashboard.html   # Dashboard
-│       ├── reports.html     # Reports
-│       ├── product_list.html # Products
+│       ├── dashboard.html      # Dashboard
+│       ├── reports.html        # Reports
+│       ├── product_list.html   # Products
 │       ├── product_detail.html # Product details
-│       ├── sale_list.html   # Sales
-│       └── export_data.html # Export interface
+│       ├── sale_list.html      # Sales
+│       ├── pos.html            # Point of Sale interface
+│       ├── customer_list.html  # Customer management
+│       ├── supplier_list.html  # Supplier management
+│       └── export_data.html    # Export interface
 ├── static/                  # Static files (CSS, JS, images)
 ├── media/                   # User uploaded files
 ├── backups/                 # Automated backups
@@ -150,18 +181,24 @@ nicmah_system/
 ## 📊 Database Models
 
 ### Core Entities
-- **Product**: Product information, pricing, and categories
-- **Batch**: Inventory batches with expiry dates and supplier info
-- **Sale**: Sales transactions with customer details
-- **SaleItem**: Individual items in sales
+- **Customer**: Customer profiles with loyalty points, debt balance, phone, and email
+- **Supplier**: Supplier directory with contact person, lead time, and address
+- **Seller**: Staff seller profiles linked to Django users, with commission rate and totals
+- **Product**: Product information, pricing, categories, images, and default supplier
+- **Batch**: Inventory batches with expiry dates and supplier FK (legacy text field retained)
+- **PurchaseOrder**: Stock orders from suppliers with draft/sent/received/cancelled status
+- **PurchaseOrderItem**: Line items within a purchase order
+- **Sale**: Sales transactions linked to Customer and Seller, with `is_paid` flag
+- **SaleItem**: Individual items in a sale
 - **StockAdjustment**: Stock modifications and corrections
 - **BackupLog**: Automated backup tracking
 
 ### Key Relationships
-- Products have multiple batches
-- Sales contain multiple sale items
-- Sale items reference specific batches
-- Stock adjustments track inventory changes
+- Products belong to a default Supplier and have multiple Batches
+- Batches are linked to a Supplier (FK) with a `legacy_supplier` text field for old data
+- Sales are linked to a Customer and a Seller; unpaid sales increment the customer's debt balance
+- PurchaseOrders belong to a Supplier and contain PurchaseOrderItems
+- Sellers have a OneToOne relationship with Django's auth User model
 
 ## 💰 VAT Tracking System
 
@@ -432,6 +469,9 @@ python manage.py shell
 - **POST /api/export/**: Data export operations
 - **GET /api/products/**: Product information
 - **GET /api/sales/**: Sales data
+- **GET /pos/**: Point of Sale interface
+- **GET /customers/**: Customer list and management
+- **GET /suppliers/**: Supplier list and management
 
 ### Authentication
 - **Session-based**: Uses Django session authentication
@@ -526,10 +566,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **v1.0.0**: Initial release with core functionality
 - **v1.1.0**: Enhanced reporting and analytics
 - **v1.2.0**: Advanced backup and restore features
-- **v2.0.0**: Major UI/UX improvements and mobile support
+- **v2.0.0**: Customer, Supplier, and Seller models; POS interface; Purchase Orders; product images; payment status tracking
 
 ---
 
 **Built with ❤️ using Django and modern web technologies**
 
-*Last updated: December 2025*
+*Last updated: March 2026*

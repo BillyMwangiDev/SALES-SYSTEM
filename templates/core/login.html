@@ -1,55 +1,369 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Nicmah System</title>
 
-{% block title %}Login - Nicmah System{% endblock %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center">
-                    <h4 class="mb-0">
-                        <i class="fas fa-sign-in-alt me-2"></i>
-                        Login
-                    </h4>
-                </div>
-                <div class="card-body">
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                    
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-sign-in-alt me-2"></i>
-                                Login
-                            </button>
-                        </div>
-                    </form>
-                    
-                    <div class="text-center mt-3">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Use your admin credentials to login
-                        </small>
-                    </div>
-                </div>
+    <style>
+        :root {
+            --c-bg:       #0F172A;
+            --c-panel:    #080F1E;
+            --c-surface:  #1E293B;
+            --c-border:   rgba(51, 65, 85, 0.6);
+            --c-teal:     #14B8A6;
+            --c-teal-lt:  #2DD4BF;
+            --c-text:     #E2E8F0;
+            --c-muted:    #64748B;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Figtree', sans-serif;
+            background: var(--c-bg);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Left brand panel ─── */
+        .brand-panel {
+            width: 42%;
+            background: var(--c-panel);
+            border-right: 1px solid var(--c-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2.5rem 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative teal top bar */
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--c-teal), var(--c-teal-lt), transparent);
+        }
+
+        /* Subtle grid pattern */
+        .brand-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(20,184,166,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(20,184,166,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-icon {
+            width: 36px; height: 36px;
+            background: rgba(20,184,166,0.12);
+            border: 1px solid rgba(20,184,166,0.3);
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--c-teal);
+            font-size: 0.9rem;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #F1F5F9;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-hero {
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-tagline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #F1F5F9;
+            line-height: 1.2;
+            letter-spacing: -0.04em;
+            margin-bottom: 1rem;
+        }
+
+        .brand-tagline span {
+            color: var(--c-teal);
+        }
+
+        .brand-desc {
+            font-size: 0.875rem;
+            color: var(--c-muted);
+            line-height: 1.7;
+            max-width: 300px;
+        }
+
+        .brand-stats {
+            display: flex;
+            gap: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-item {
+            border-top: 1px solid rgba(51,65,85,0.6);
+            padding-top: 0.75rem;
+        }
+
+        .stat-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #CBD5E1;
+            letter-spacing: -0.04em;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--c-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        /* ── Right form panel ─── */
+        .form-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .login-heading {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #F1F5F9;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.4rem;
+        }
+
+        .login-sub {
+            font-size: 0.84rem;
+            color: var(--c-muted);
+            margin-bottom: 2rem;
+        }
+
+        .field-group {
+            margin-bottom: 1.1rem;
+        }
+
+        .field-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #475569;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+
+        .field-wrap {
+            position: relative;
+        }
+
+        .field-icon {
+            position: absolute;
+            left: 0.85rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #334155;
+            font-size: 0.78rem;
+            pointer-events: none;
+        }
+
+        .field-input {
+            width: 100%;
+            background: #080F1E;
+            border: 1px solid rgba(51,65,85,0.7);
+            border-radius: 8px;
+            color: #E2E8F0;
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.875rem;
+            padding: 0.65rem 0.85rem 0.65rem 2.25rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .field-input::placeholder { color: #1E293B; }
+
+        .field-input:focus {
+            border-color: var(--c-teal);
+            box-shadow: 0 0 0 3px rgba(20,184,166,0.15);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--c-teal);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.7rem;
+            margin-top: 0.5rem;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+        }
+        .submit-btn:hover {
+            background: var(--c-teal-lt);
+            box-shadow: 0 4px 16px rgba(20,184,166,0.3);
+            transform: translateY(-1px);
+        }
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .hint-text {
+            font-size: 0.75rem;
+            color: #334155;
+            text-align: center;
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+        }
+
+        .alert {
+            background: rgba(244,63,94,0.1);
+            border: 1px solid rgba(244,63,94,0.25);
+            color: #FB7185;
+            border-radius: 8px;
+            padding: 0.65rem 0.9rem;
+            font-size: 0.84rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .alert-success {
+            background: rgba(16,185,129,0.1);
+            border-color: rgba(16,185,129,0.25);
+            color: #34D399;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .brand-panel { display: none; }
+            .form-panel { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left brand panel -->
+    <div class="brand-panel">
+        <div class="brand-logo">
+            <div class="brand-icon"><i class="fas fa-leaf"></i></div>
+            <span class="brand-name">Nicmah System</span>
+        </div>
+
+        <div class="brand-hero">
+            <h1 class="brand-tagline">
+                Run your<br>
+                business<br>
+                <span>smarter.</span>
+            </h1>
+            <p class="brand-desc">
+                Inventory, point of sale, analytics, and reporting —
+                all in one place for your team.
+            </p>
+        </div>
+
+        <div class="brand-stats">
+            <div class="stat-item">
+                <div class="stat-num">POS</div>
+                <div class="stat-label">Integrated</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">Live</div>
+                <div class="stat-label">Analytics</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">M-Pesa</div>
+                <div class="stat-label">Supported</div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+
+    <!-- Right form panel -->
+    <div class="form-panel">
+        <div class="login-box">
+            <h2 class="login-heading">Welcome back</h2>
+            <p class="login-sub">Sign in to your account to continue</p>
+
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="field-group">
+                    <label class="field-label" for="username">Username</label>
+                    <div class="field-wrap">
+                        <span class="field-icon"><i class="fas fa-user"></i></span>
+                        <input class="field-input" type="text" id="username" name="username"
+                               placeholder="Enter your username" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="password">Password</label>
+                    <div class="field-wrap">
+                        <span class="field-icon"><i class="fas fa-lock"></i></span>
+                        <input class="field-input" type="password" id="password" name="password"
+                               placeholder="Enter your password" required autocomplete="current-password">
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:0.75rem;"></i>
+                </button>
+            </form>
+
+            <p class="hint-text">
+                <i class="fas fa-shield-halved" style="color:#1E293B; font-size:0.7rem;"></i>
+                Use your administrator credentials
+            </p>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

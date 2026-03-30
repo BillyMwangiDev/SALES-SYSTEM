@@ -16,7 +16,8 @@ from datetime import timedelta, date
 from decimal import Decimal
 import json
 import csv
-from .models import Product, Sale, SaleItem, Batch, StockAdjustment, BackupLog
+import uuid
+from .models import Product, Sale, SaleItem, Batch, StockAdjustment, BackupLog, Customer, Supplier, Seller
 
 
 def login_view(request):
@@ -265,10 +266,23 @@ def sales_entry(request):
     if request.method == 'POST':
         try:
             # Get form data
-            seller_name = request.POST.get('seller_name', '').strip()
-            sale_type = request.POST.get('sale_type', 'retail')
+            seller_id = request.POST.get('seller_id')
+            customer_id = request.POST.get('customer_id')
+            payment_type = request.POST.get('payment_type', 'cash')
             discount = Decimal(request.POST.get('discount', '0'))
             notes = request.POST.get('notes', '').strip()
+            
+            # Seller handling - use profile or specified ID
+            seller = None
+            if seller_id:
+                seller = get_object_or_404(Seller, id=seller_id)
+            elif hasattr(request.user, 'seller_profile'):
+                seller = request.user.seller_profile
+                
+            # Customer handling
+            customer = None
+            if customer_id:
+                customer = get_object_or_404(Customer, id=customer_id)
             
             # Process sale items first to calculate totals
             items_data = json.loads(request.POST.get('items_data', '[]'))
@@ -277,9 +291,9 @@ def sales_entry(request):
             
             # Validate and calculate totals
             for item_data in items_data:
-                product_id = item_data.get('product_id')
+                product_id = item_data.get('product_id') or item_data.get('id')
                 quantity = Decimal(item_data.get('quantity', '0'))
-                unit_price = Decimal(item_data.get('unit_price', '0'))
+                unit_price = Decimal(item_data.get('unit_price') or item_data.get('price', '0'))
                 
                 if product_id and quantity > 0 and unit_price > 0:
                     product = Product.objects.get(id=product_id)
@@ -293,9 +307,14 @@ def sales_entry(request):
             total_amount = subtotal + total_vat
             
             # Create sale record
+            invoice_number = f'INV-{uuid.uuid4().hex[:8].upper()}'
             sale = Sale.objects.create(
-                seller_name=seller_name,
-                sale_type=sale_type,
+                invoice_number=invoice_number,
+                customer=customer,
+                seller=seller,
+                seller_name=seller.user.username if seller else "Unknown",
+                sale_type=payment_type,
+                is_paid=True if payment_type != 'credit' else False,
                 subtotal=subtotal,
                 total_vat=total_vat,
                 total_amount=total_amount,
@@ -306,14 +325,20 @@ def sales_entry(request):
             
             # Process sale items
             for item_data in items_data:
-                product_id = item_data.get('product_id')
+                product_id = item_data.get('product_id') or item_data.get('id')
                 batch_id = item_data.get('batch_id')
                 quantity = Decimal(item_data.get('quantity', '0'))
-                unit_price = Decimal(item_data.get('unit_price', '0'))
+                unit_price = Decimal(item_data.get('unit_price') or item_data.get('price', '0'))
                 
                 if product_id and quantity > 0 and unit_price > 0:
                     product = Product.objects.get(id=product_id)
-                    batch = Batch.objects.get(id=batch_id) if batch_id else None
+                    
+                    # If batch not specified (common in POS), pick latest expiring batch automatically
+                    batch = None
+                    if batch_id:
+                        batch = Batch.objects.get(id=batch_id)
+                    else:
+                        batch = product.batches.filter(quantity__gt=0).order_by('expiry_date').first()
                     
                     # Calculate item VAT
                     item_subtotal = quantity * unit_price
@@ -335,14 +360,18 @@ def sales_entry(request):
                     
                     # Update stock
                     if batch:
-                        batch.quantity = max(0, batch.quantity - quantity)
+                        batch.quantity = max(0, batch.quantity - int(quantity))
                         batch.save()
             
-            messages.success(request, f'Sale recorded successfully! Invoice: {sale.invoice_number}')
-            return redirect('core:sales_list')
+            # Generate and auto-suggest PO if product is low on stock
+            # (Business logic integration point)
+            
+            messages.success(request, f'Sale recorded successfully! Invoice: #000{sale.id}')
+            return redirect('core:sale_list')
             
         except Exception as e:
             messages.error(request, f'Error recording sale: {str(e)}')
+            return redirect('core:pos')
     
     # Get available products for the form
     products = Product.objects.filter(is_active=True).select_related()
@@ -632,3 +661,52 @@ class SaleListView(LoginRequiredMixin, ListView):
         context['unique_sellers'] = queryset.values('seller_name').distinct().count()
         
         return context
+
+
+@login_required
+def pos_view(request):
+    """Real-time Point of Sale interface."""
+    products = Product.objects.filter(is_active=True).prefetch_related('batches')
+    customers = Customer.objects.all()
+    sellers = Seller.objects.filter(is_active=True).select_related('user')
+
+    products_data = {
+        str(p.id): {
+            'name': p.name,
+            'price': float(p.selling_price),
+            'sku': p.sku,
+            'stock': p.current_stock,
+            'vat_rate': float(p.vat_rate),
+        }
+        for p in products
+    }
+
+    # Check if the user is a seller themselves
+    try:
+        current_seller = request.user.seller_profile
+    except Exception:
+        current_seller = None
+
+    context = {
+        'products': products,
+        'products_data': products_data,
+        'customers': customers,
+        'sellers': sellers,
+        'current_seller': current_seller,
+        'sale_types': Sale.SALE_TYPES,
+    }
+    return render(request, 'core/pos.html', context)
+
+
+@login_required
+def customer_list(request):
+    """List and manage customers."""
+    customers = Customer.objects.all()
+    return render(request, 'core/customer_list.html', {'customers': customers})
+
+
+@login_required
+def supplier_list(request):
+    """List and manage suppliers."""
+    suppliers = Supplier.objects.all()
+    return render(request, 'core/supplier_list.html', {'suppliers': suppliers})

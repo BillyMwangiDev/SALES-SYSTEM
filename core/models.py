@@ -9,6 +9,90 @@ from decimal import Decimal
 import uuid
 
 
+class Customer(models.Model):
+    """Customer model for managing loyalty and debt."""
+    
+    name = models.CharField(max_length=200, verbose_name="Customer Name")
+    phone = models.CharField(max_length=15, unique=True, verbose_name="Phone Number")
+    email = models.EmailField(blank=True, verbose_name="Email Address")
+    loyalty_points = models.IntegerField(default=0, verbose_name="Loyalty Points")
+    debt_balance = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0, 
+        verbose_name="Debt Balance"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Customer"
+        verbose_name_plural = "Customers"
+
+    def __str__(self):
+        return f"{self.name} ({self.phone})"
+
+    def update_loyalty_points(self, amount):
+        """Update loyalty points based on sale amount."""
+        # Simple logic: 1 point for every 100 KES spent
+        points = int(amount / 100)
+        self.loyalty_points += points
+        self.save()
+
+    def adjust_debt(self, amount):
+        """Adjust customer debt balance."""
+        self.debt_balance += Decimal(str(amount))
+        self.save()
+
+
+class Supplier(models.Model):
+    """Supplier model for managing product sources."""
+    
+    name = models.CharField(max_length=200, verbose_name="Supplier Name")
+    contact_person = models.CharField(max_length=200, blank=True, verbose_name="Contact Person")
+    phone = models.CharField(max_length=15, blank=True, verbose_name="Phone Number")
+    email = models.EmailField(blank=True, verbose_name="Email Address")
+    address = models.TextField(blank=True, verbose_name="Address")
+    lead_time_days = models.IntegerField(default=7, verbose_name="Average Lead Time (Days)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Supplier"
+        verbose_name_plural = "Suppliers"
+
+    def __str__(self):
+        return self.name
+
+
+class Seller(models.Model):
+    """Seller model for tracking individual performance and commissions."""
+    
+    user = models.OneToOneField('auth.User', on_delete=models.CASCADE, related_name='seller_profile')
+    phone = models.CharField(max_length=15, blank=True, verbose_name="Phone Number")
+    commission_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.00, 
+        verbose_name="Commission Rate (%)"
+    )
+    total_earned = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=0, 
+        verbose_name="Total Earned Commissions"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Active")
+
+    class Meta:
+        verbose_name = "Seller"
+        verbose_name_plural = "Sellers"
+
+    def __str__(self):
+        return self.user.get_full_name() or self.user.username
+
+
 class Product(models.Model):
     """Product model for managing inventory items."""
     
@@ -16,6 +100,7 @@ class Product(models.Model):
     sku = models.CharField(max_length=50, unique=True, verbose_name="SKU")
     category = models.CharField(max_length=100, verbose_name="Category")
     unit = models.CharField(max_length=20, verbose_name="Unit (kg, L, pcs)")
+    image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Product Image")
     cost_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -33,6 +118,13 @@ class Product(models.Model):
         verbose_name="VAT Rate (%)"
     )
     reorder_level = models.IntegerField(verbose_name="Reorder Level")
+    default_supplier = models.ForeignKey(
+        Supplier, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name="Default Supplier"
+    )
     description = models.TextField(blank=True, verbose_name="Description")
     is_active = models.BooleanField(default=True, verbose_name="Active")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -105,7 +197,14 @@ class Batch(models.Model):
         decimal_places=2, 
         verbose_name="Batch Cost Price"
     )
-    supplier = models.CharField(max_length=200, blank=True, verbose_name="Supplier")
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Supplier"
+    )
+    legacy_supplier = models.CharField(max_length=200, blank=True, default='', verbose_name="Supplier (Legacy)")
     notes = models.TextField(blank=True, verbose_name="Notes")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -140,6 +239,47 @@ class Batch(models.Model):
             return "Good"
 
 
+class PurchaseOrder(models.Model):
+    """Model for managing stock orders from suppliers."""
+    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('sent', 'Sent'),
+        ('received', 'Received'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    po_number = models.CharField(max_length=50, unique=True, verbose_name="PO Number")
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Purchase Order"
+        verbose_name_plural = "Purchase Orders"
+
+    def __str__(self):
+        return f"{self.po_number} - {self.supplier.name}"
+
+
+class PurchaseOrderItem(models.Model):
+    """Items within a purchase order."""
+    
+    po = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField(validators=[MinValueValidator(1)])
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def save(self, *args, **kwargs):
+        self.total_cost = self.quantity * self.cost_price
+        super().save(*args, **kwargs)
+
+
 class Sale(models.Model):
     """Sale model for recording customer transactions."""
     
@@ -155,12 +295,29 @@ class Sale(models.Model):
         unique=True, 
         verbose_name="Invoice Number"
     )
-    seller_name = models.CharField(max_length=200, verbose_name="Seller Name", default="Unknown Seller")
+    customer = models.ForeignKey(
+        Customer, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='sales',
+        verbose_name="Customer"
+    )
+    seller = models.ForeignKey(
+        Seller, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='sales',
+        verbose_name="Seller"
+    )
+    seller_name = models.CharField(max_length=200, verbose_name="Seller Name (Legacy)", default="Unknown Seller")
     sale_type = models.CharField(
         max_length=20, 
         choices=SALE_TYPES, 
         verbose_name="Sale Type"
     )
+    is_paid = models.BooleanField(default=True, verbose_name="Is Paid")
     subtotal = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 

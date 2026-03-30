@@ -9,7 +9,50 @@ from django.utils.safestring import mark_safe
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import date, timedelta
-from .models import Product, Batch, Sale, SaleItem, StockAdjustment, BackupLog
+from .models import (
+    Customer, Supplier, Seller, Product, Batch, 
+    Sale, SaleItem, StockAdjustment, BackupLog,
+    PurchaseOrder, PurchaseOrderItem
+)
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    """Admin interface for Customer model."""
+    list_display = ['name', 'phone', 'email', 'loyalty_points', 'debt_balance', 'created_at']
+    search_fields = ['name', 'phone', 'email']
+    list_filter = ['created_at']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    """Admin interface for Supplier model."""
+    list_display = ['name', 'contact_person', 'phone', 'email', 'lead_time_days']
+    search_fields = ['name', 'contact_person', 'phone']
+
+
+@admin.register(Seller)
+class SellerAdmin(admin.ModelAdmin):
+    """Admin interface for Seller model."""
+    list_display = ['user', 'phone', 'commission_rate', 'total_earned', 'is_active']
+    search_fields = ['user__username', 'phone']
+    list_filter = ['is_active']
+
+
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 1
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    """Admin interface for PurchaseOrder model."""
+    list_display = ['po_number', 'supplier', 'status', 'total_amount', 'created_at']
+    list_filter = ['status', 'supplier', 'created_at']
+    search_fields = ['po_number', 'supplier__name']
+    inlines = [PurchaseOrderItemInline]
+    readonly_fields = ['created_at', 'updated_at']
 
 
 @admin.register(Product)
@@ -20,14 +63,17 @@ class ProductAdmin(admin.ModelAdmin):
         'name', 'sku', 'category', 'cost_price', 'selling_price', 'vat_rate',
         'gross_profit_margin', 'current_stock', 'stock_status', 'reorder_level', 'is_active'
     ]
-    list_filter = ['category', 'is_active', 'created_at', 'vat_rate']
+    list_filter = ['category', 'is_active', 'created_at', 'vat_rate', 'default_supplier']
     search_fields = ['name', 'sku', 'category', 'description']
     readonly_fields = ['gross_profit_margin', 'current_stock', 'stock_status', 'vat_amount', 'price_without_vat', 'created_at', 'updated_at']
     list_editable = ['is_active', 'reorder_level', 'vat_rate']
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'sku', 'category', 'unit', 'description', 'is_active')
+            'fields': ('name', 'sku', 'category', 'unit', 'image', 'description', 'is_active')
+        }),
+        ('Supplier Information', {
+            'fields': ('default_supplier',)
         }),
         ('Pricing', {
             'fields': ('cost_price', 'selling_price', 'vat_rate', 'reorder_level')
@@ -102,13 +148,13 @@ class BatchAdmin(admin.ModelAdmin):
         'cost_price', 'days_to_expiry', 'expiry_status', 'supplier'
     ]
     list_filter = ['expiry_date', 'product__category', 'supplier', 'created_at']
-    search_fields = ['batch_number', 'product__name', 'supplier']
+    search_fields = ['batch_number', 'product__name', 'supplier__name', 'legacy_supplier']
     readonly_fields = ['days_to_expiry', 'expiry_status', 'created_at']
     list_editable = ['quantity', 'cost_price']
     
     fieldsets = (
         ('Batch Information', {
-            'fields': ('product', 'batch_number', 'supplier', 'notes')
+            'fields': ('product', 'batch_number', 'supplier', 'legacy_supplier', 'notes')
         }),
         ('Stock Details', {
             'fields': ('quantity', 'cost_price', 'expiry_date')
@@ -161,16 +207,16 @@ class SaleAdmin(admin.ModelAdmin):
     """Admin interface for Sale model."""
     
     list_display = [
-        'invoice_number', 'seller_name', 'sale_type', 
-        'subtotal', 'total_vat', 'total_amount', 'net_amount', 'sale_date', 'items_count'
+        'invoice_number', 'customer', 'seller', 'sale_type', 
+        'subtotal', 'total_vat', 'total_amount', 'net_amount', 'sale_date', 'is_paid'
     ]
-    list_filter = ['sale_type', 'sale_date', 'seller_name']
-    search_fields = ['invoice_number', 'seller_name']
+    list_filter = ['sale_type', 'sale_date', 'seller', 'is_paid']
+    search_fields = ['invoice_number', 'seller__user__username', 'customer__name', 'seller_name']
     readonly_fields = ['sale_date', 'net_amount', 'items_count', 'vat_rate_percentage']
     
     fieldsets = (
         ('Sale Information', {
-            'fields': ('invoice_number', 'seller_name', 'sale_type')
+            'fields': ('invoice_number', 'customer', 'seller', 'seller_name', 'sale_type', 'is_paid')
         }),
         ('Financial Details', {
             'fields': ('subtotal', 'total_vat', 'total_amount', 'discount', 'net_amount', 'vat_rate_percentage')

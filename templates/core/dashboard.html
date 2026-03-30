@@ -14,83 +14,51 @@
 {% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row g-3 mb-3">
     <!-- Key Metrics Cards -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card metric-card border-primary h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Daily Sales
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            KES {{ daily_sales|floatformat:2 }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-calendar fa-2x text-gray-300"></i>
-                    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card metric-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="metric-icon teal"><i class="fas fa-calendar-day"></i></div>
+                <div>
+                    <div class="metric-label">Daily Sales</div>
+                    <div class="metric-value">KES {{ daily_sales|floatformat:0 }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card metric-card border-success h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Monthly Sales
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            KES {{ monthly_sales|floatformat:2 }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
-                    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card metric-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="metric-icon emerald"><i class="fas fa-chart-line"></i></div>
+                <div>
+                    <div class="metric-label">Monthly Sales</div>
+                    <div class="metric-value">KES {{ monthly_sales|floatformat:0 }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card metric-card border-info h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Total Stock Value
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            KES {{ total_stock_value|floatformat:2 }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-boxes fa-2x text-gray-300"></i>
-                    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card metric-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="metric-icon sky"><i class="fas fa-boxes-stacked"></i></div>
+                <div>
+                    <div class="metric-label">Stock Value</div>
+                    <div class="metric-value">KES {{ total_stock_value|floatformat:0 }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card metric-card border-warning h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Active Sellers
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ unique_sellers }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-gray-300"></i>
-                    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card metric-card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="metric-icon amber"><i class="fas fa-users"></i></div>
+                <div>
+                    <div class="metric-label">Active Sellers</div>
+                    <div class="metric-value">{{ unique_sellers }}</div>
                 </div>
             </div>
         </div>
@@ -271,8 +239,18 @@
 
 {% block extra_js %}
 <script>
+// Chart global defaults — dark theme
+Chart.defaults.color = '#64748B';
+Chart.defaults.borderColor = 'rgba(51,65,85,0.35)';
+Chart.defaults.font.family = "'Figtree', sans-serif";
+Chart.defaults.font.size = 11;
+
 // Sales Trend Chart
 const salesTrendCtx = document.getElementById('salesTrendChart').getContext('2d');
+const trendGradient = salesTrendCtx.createLinearGradient(0, 0, 0, 220);
+trendGradient.addColorStop(0, 'rgba(20,184,166,0.22)');
+trendGradient.addColorStop(1, 'rgba(20,184,166,0.01)');
+
 const salesTrendChart = new Chart(salesTrendCtx, {
     type: 'line',
     data: {
@@ -280,9 +258,15 @@ const salesTrendChart = new Chart(salesTrendCtx, {
         datasets: [{
             label: 'Daily Sales (KES)',
             data: {{ sales_trend|safe }},
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1,
+            borderColor: '#14B8A6',
+            backgroundColor: trendGradient,
+            borderWidth: 2,
+            pointBackgroundColor: '#14B8A6',
+            pointBorderColor: '#0F172A',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.4,
             fill: true
         }]
     },
@@ -291,17 +275,31 @@ const salesTrendChart = new Chart(salesTrendCtx, {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: true,
-                position: 'top'
+                display: false
+            },
+            tooltip: {
+                backgroundColor: '#1E293B',
+                borderColor: 'rgba(51,65,85,0.6)',
+                borderWidth: 1,
+                titleColor: '#CBD5E1',
+                bodyColor: '#94A3B8',
+                padding: 10,
+                callbacks: {
+                    label: function(ctx) { return ' KES ' + ctx.parsed.y.toLocaleString(); }
+                }
             }
         },
         scales: {
+            x: {
+                grid: { color: 'rgba(51,65,85,0.2)' },
+                ticks: { color: '#475569' }
+            },
             y: {
                 beginAtZero: true,
+                grid: { color: 'rgba(51,65,85,0.2)' },
                 ticks: {
-                    callback: function(value) {
-                        return 'KES ' + value.toLocaleString();
-                    }
+                    color: '#475569',
+                    callback: function(value) { return 'KES ' + value.toLocaleString(); }
                 }
             }
         }
@@ -317,29 +315,37 @@ const topProductsChart = new Chart(topProductsCtx, {
         datasets: [{
             data: {{ top_products|safe }},
             backgroundColor: [
-                '#FF6384',
-                '#36A2EB',
-                '#FFCE56',
-                '#4BC0C0',
-                '#9966FF',
-                '#FF9F40',
-                '#FF6384',
-                '#C9CBCF',
-                '#4BC0C0',
-                '#FF6384'
-            ]
+                '#14B8A6', '#10B981', '#38BDF8',
+                '#F59E0B', '#F97316', '#8B5CF6',
+                '#EC4899', '#06B6D4', '#84CC16', '#EF4444'
+            ],
+            borderColor: '#0F172A',
+            borderWidth: 3,
+            hoverOffset: 6
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: '65%',
         plugins: {
             legend: {
                 position: 'bottom',
                 labels: {
-                    padding: 20,
-                    usePointStyle: true
+                    padding: 14,
+                    usePointStyle: true,
+                    pointStyleWidth: 8,
+                    color: '#64748B',
+                    font: { size: 11 }
                 }
+            },
+            tooltip: {
+                backgroundColor: '#1E293B',
+                borderColor: 'rgba(51,65,85,0.6)',
+                borderWidth: 1,
+                titleColor: '#CBD5E1',
+                bodyColor: '#94A3B8',
+                padding: 10
             }
         }
     }
